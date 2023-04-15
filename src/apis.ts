@@ -55,25 +55,31 @@ const autoDowngradeForLowVersionBrowser = (configuration: FrameworkConfiguration
 
   return configuration;
 };
-
+/**
+ * 注册 app
+ * @param apps { name, entry, container, activeRule, loader, props }
+ * @param lifeCycles 生命周期
+ */
 export function registerMicroApps<T extends ObjectType>(
   apps: Array<RegistrableApp<T>>,
   lifeCycles?: FrameworkLifeCycles<T>,
 ) {
   // Each app only needs to be registered once
+  // 找到没有注册的 app，第一次全是没注册的
   const unregisteredApps = apps.filter((app) => !microApps.some((registeredApp) => registeredApp.name === app.name));
-
+  // 拿到所有的子应用
   microApps = [...microApps, ...unregisteredApps];
 
   unregisteredApps.forEach((app) => {
-    const { name, activeRule, loader = noop, props, ...appConfig } = app;
-
+    const { name, activeRule, loader = noop, props, ...appConfig /* entry, container */ } = app;
+    // 注册子应用
     registerApplication({
       name,
       app: async () => {
+        // 执行 loader
         loader(true);
         await frameworkStartedDefer.promise;
-
+        
         const { mount, ...otherMicroAppConfigs } = (
           await loadApp({ name, props, ...appConfig }, frameworkConfiguration, lifeCycles)
         )();
