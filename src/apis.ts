@@ -218,6 +218,7 @@ export function start(opts: FrameworkConfiguration = {}) {
   const { prefetch, urlRerouteOnly = defaultUrlRerouteOnly, ...importEntryOpts } = frameworkConfiguration;
 
   if (prefetch) {
+    // 预加载策越
     doPrefetchStrategy(microApps, prefetch, importEntryOpts);
   }
 

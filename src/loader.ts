@@ -250,6 +250,7 @@ export async function loadApp<T extends ObjectType>(
   const appInstanceId = genAppInstanceIdByName(appName);
 
   const markName = `[qiankun] App ${appInstanceId} Loading`;
+  // 开发环境下性能展示
   if (process.env.NODE_ENV === 'development') {
     performanceMark(markName);
   }
