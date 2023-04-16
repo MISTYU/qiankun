@@ -78,11 +78,13 @@ export function registerMicroApps<T extends ObjectType>(
       app: async () => {
         // 执行 loader
         loader(true);
+        // 调用 start 方法才会 resolve
         await frameworkStartedDefer.promise;
-        
         const { mount, ...otherMicroAppConfigs } = (
-          await loadApp({ name, props, ...appConfig }, frameworkConfiguration, lifeCycles)
+          await loadApp({ name, props, ...appConfig }, frameworkConfiguration /* start 传入的 options */, lifeCycles)
         )();
+
+        // console.log(otherMicroAppConfigs, 'otherMicroAppConfigs');
 
         return {
           mount: [async () => loader(true), ...toArray(mount), async () => loader(false)],
