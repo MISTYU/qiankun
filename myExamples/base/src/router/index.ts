@@ -11,12 +11,12 @@ const router = createRouter({
       component: Index,
       children: [
         {
-          path: 'vue-vite',
+          path: 'vue3-vite',
           name: 'vueVite',
           component: MicroApp,
         },
         {
-          path: 'vue-webpack',
+          path: 'vue2-webpack',
           name: 'vueWebpack',
           component: MicroApp,
         }

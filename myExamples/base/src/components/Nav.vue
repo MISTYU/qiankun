@@ -20,6 +20,9 @@ const onTo = (path: string) => {
 </script>
 
 <style scoped>
+.title {
+  text-align: center;
+}
 .nav {
   display: flex;
   justify-content: center;
