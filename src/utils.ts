@@ -141,11 +141,17 @@ export const isConstDestructAssignmentSupported = memoize(() => {
 });
 
 export const qiankunHeadTagName = 'qiankun-head';
-
+/**
+ * 用来包装 template
+ * @param name name 
+ * @param sandboxOpts 沙箱 options
+ * @returns 
+ */
 export function getDefaultTplWrapper(name: string, sandboxOpts: FrameworkConfiguration['sandbox']) {
+  // template
   return (tpl: string) => {
     let tplWithSimulatedHead: string;
-
+    // 如果有 head, 那就把 head 全部替换成 qiankun head
     if (tpl.indexOf('<head>') !== -1) {
       // We need to mock a head placeholder as native head element will be erased by browser in micro app
       tplWithSimulatedHead = tpl
@@ -155,7 +161,7 @@ export function getDefaultTplWrapper(name: string, sandboxOpts: FrameworkConfigu
       // Some template might not be a standard html document, thus we need to add a simulated head tag for them
       tplWithSimulatedHead = `<${qiankunHeadTagName}></${qiankunHeadTagName}>${tpl}`;
     }
-
+    // 返回 qiankun 包装的 html
     return `<div id="${getWrapperId(
       name,
     )}" data-name="${name}" data-version="${version}" data-sandbox-cfg=${JSON.stringify(
@@ -168,10 +174,14 @@ export function getWrapperId(name: string) {
   return `__qiankun_microapp_wrapper_for_${snakeCase(name)}__`;
 }
 
+// 在浏览器中就是 window
 export const nativeGlobal = new Function('return this')();
 
 export const nativeDocument = new Function('return document')();
 
+/**
+ * 获取 __app_instance_name_map__
+ */
 const getGlobalAppInstanceMap = once<() => Record<string, number>>(() => {
   if (!nativeGlobal.hasOwnProperty('__app_instance_name_map__')) {
     Object.defineProperty(nativeGlobal, '__app_instance_name_map__', {
@@ -235,7 +245,10 @@ export function performanceGetEntriesByName(markName: string, type?: string) {
   }
   return marks;
 }
-
+/**
+ * 标记用的
+ * @param markName 
+ */
 export function performanceMark(markName: string) {
   if (supportsUserTiming) {
     performance.mark(markName);
@@ -249,7 +262,11 @@ export function performanceMeasure(measureName: string, markName: string) {
     performance.clearMeasures(measureName);
   }
 }
-
+/**
+ * 是否开启 scopedcss 隔离
+ * @param sandbox 
+ * @returns 
+ */
 export function isEnableScopedCSS(sandbox: FrameworkConfiguration['sandbox']) {
   if (typeof sandbox !== 'object') {
     return false;

@@ -81,6 +81,12 @@ const useNativeWindowForBindingsProps = new Map<PropertyKey, boolean>([
   ['mockDomAPIInBlackList', process.env.NODE_ENV === 'test'],
 ]);
 
+/**
+ * 创建一个假的 window 实例
+ * @param globalContext 
+ * @param speedy 
+ * @returns 
+ */
 function createFakeWindow(globalContext: Window, speedy: boolean) {
   // map always has the fastest performance in has check scenario
   // see https://jsperf.com/array-indexof-vs-set-has/23
@@ -156,12 +162,12 @@ export default class ProxySandbox implements SandBox {
   proxy: WindowProxy;
   sandboxRunning = true;
   latestSetProp: PropertyKey | null = null;
-
+  // 激活
   active() {
     if (!this.sandboxRunning) activeSandboxCount++;
     this.sandboxRunning = true;
   }
-
+  // 失活
   inactive() {
     if (process.env.NODE_ENV === 'development') {
       console.info(`[qiankun:sandbox] ${this.name} modified global properties restore...`, [
@@ -173,6 +179,7 @@ export default class ProxySandbox implements SandBox {
       // reset the global value to the prev value
       Object.keys(this.globalWhitelistPrevDescriptor).forEach((p) => {
         const descriptor = this.globalWhitelistPrevDescriptor[p];
+
         if (descriptor) {
           Object.defineProperty(this.globalContext, p, descriptor);
         } else {
@@ -197,7 +204,8 @@ export default class ProxySandbox implements SandBox {
   constructor(name: string, globalContext = window, opts?: { speedy: boolean }) {
     this.name = name;
     this.globalContext = globalContext;
-    this.type = SandBoxType.Proxy;
+
+    this.type = SandBoxType.Proxy; // proxy
     const { updatedValueSet } = this;
     const { speedy } = opts || {};
 

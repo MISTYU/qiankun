@@ -41,6 +41,7 @@ export function createSandboxContainer(
   speedySandBox?: boolean,
 ) {
   let sandbox: SandBox;
+  // 支持 proxy 的情况下
   if (window.Proxy) {
     sandbox = useLooseSandbox
       ? new LegacySandbox(appName, globalContext)

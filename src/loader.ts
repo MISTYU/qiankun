@@ -55,15 +55,27 @@ function execHooksChain<T extends ObjectType>(
   return Promise.resolve();
 }
 
+/**
+ * 是否是单例模式
+ * @param validate 
+ * @param app 
+ * @returns 
+ */
 async function validateSingularMode<T extends ObjectType>(
   validate: FrameworkConfiguration['singular'],
   app: LoadableApp<T>,
 ): Promise<boolean> {
   return typeof validate === 'function' ? validate(app) : !!validate;
 }
-
+// 是否支持 shadow dom
 const supportShadowDOM = !!document.head.attachShadow || !!(document.head as any).createShadowRoot;
-
+/**
+ * @param appContent 包装后的 template
+ * @param strictStyleIsolation 是否开启 shadow dom
+ * @param scopedCSS
+ * @param appInstanceId name
+ * @returns 
+ */
 function createElement(
   appContent: string,
   strictStyleIsolation: boolean,
@@ -74,6 +86,7 @@ function createElement(
   containerElement.innerHTML = appContent;
   // appContent always wrapped with a singular div
   const appElement = containerElement.firstChild as HTMLElement;
+  // 用 shadow dom 包装一层
   if (strictStyleIsolation) {
     if (!supportShadowDOM) {
       console.warn(
@@ -95,13 +108,14 @@ function createElement(
   }
 
   if (scopedCSS) {
-    const attr = appElement.getAttribute(css.QiankunCSSRewriteAttr);
+    const attr = appElement.getAttribute(css.QiankunCSSRewriteAttr); // data-qiankun
     if (!attr) {
       appElement.setAttribute(css.QiankunCSSRewriteAttr, appInstanceId);
     }
-
+    // 获取所有的 style 节点
     const styleNodes = appElement.querySelectorAll('style') || [];
     forEach(styleNodes, (stylesheetElement: HTMLStyleElement) => {
+      // todo
       css.process(appElement!, stylesheetElement, appInstanceId);
     });
   }
@@ -153,6 +167,11 @@ type ElementRender = (
  * @param legacyRender
  */
 function getRender(appInstanceId: string, appContent: string, legacyRender?: HTMLContentRender) {
+  /**
+   * 获取 container 节点，并且把 qiankun 包装的子应用插入
+   * @param param0 
+   * @param phase
+   */
   const render: ElementRender = ({ element, loading, container }, phase) => {
     if (legacyRender) {
       if (process.env.NODE_ENV === 'development') {
@@ -163,7 +182,7 @@ function getRender(appInstanceId: string, appContent: string, legacyRender?: HTM
 
       return legacyRender({ loading, appContent: element ? appContent : '' });
     }
-
+    // 获取 container 节点
     const containerElement = getContainer(container!);
 
     // The container might have be removed after micro app unmounted.
@@ -184,7 +203,7 @@ function getRender(appInstanceId: string, appContent: string, legacyRender?: HTM
       })();
       assertElementExist(containerElement, errorMsg);
     }
-
+    // 没有挂载
     if (containerElement && !containerElement.contains(element)) {
       // clear the container
       while (containerElement!.firstChild) {
@@ -241,16 +260,22 @@ let prevAppUnmountedDeferred: Deferred<void>;
 
 export type ParcelConfigObjectGetter = (remountContainer?: string | HTMLElement) => ParcelConfigObject;
 
+/**
+ * 
+ * @param app 注册应用的配置项
+ * @param configuration start 传入的 options
+ * @param lifeCycles 注册应用时传入的生命周期
+ * @returns 
+ */
 export async function loadApp<T extends ObjectType>(
   app: LoadableApp<T>,
   configuration: FrameworkConfiguration = {},
   lifeCycles?: FrameworkLifeCycles<T>,
-): Promise<ParcelConfigObjectGetter> {
+): Promise<ParcelConfigObjectGetter> { 
   const { entry, name: appName } = app;
   const appInstanceId = genAppInstanceIdByName(appName);
 
   const markName = `[qiankun] App ${appInstanceId} Loading`;
-  // 开发环境下性能展示
   if (process.env.NODE_ENV === 'development') {
     performanceMark(markName);
   }
@@ -262,9 +287,14 @@ export async function loadApp<T extends ObjectType>(
     globalContext = window,
     ...importEntryOpts
   } = configuration;
-
   // get the entry html content and script executor
-  const { template, execScripts, assetPublicPath, getExternalScripts } = await importEntry(entry, importEntryOpts);
+  const { 
+    template /* 纯 html 部分 */,
+    execScripts,
+    assetPublicPath,
+    getExternalScripts
+  } = await importEntry(entry, importEntryOpts);
+
   // trigger external scripts loading to make sure all assets are ready before execScripts calling
   await getExternalScripts();
 
@@ -278,7 +308,7 @@ export async function loadApp<T extends ObjectType>(
   const appContent = getDefaultTplWrapper(appInstanceId, sandbox)(template);
 
   const strictStyleIsolation = typeof sandbox === 'object' && !!sandbox.strictStyleIsolation;
-
+  // 3.0 不在支持 strictStyleIsolation
   if (process.env.NODE_ENV === 'development' && strictStyleIsolation) {
     console.warn(
       "[qiankun] strictStyleIsolation configuration will be removed in 3.0, pls don't depend on it or use experimentalStyleIsolation instead!",
@@ -286,34 +316,37 @@ export async function loadApp<T extends ObjectType>(
   }
 
   const scopedCSS = isEnableScopedCSS(sandbox);
+  // 包装后的 template Element
   let initialAppWrapperElement: HTMLElement | null = createElement(
     appContent,
     strictStyleIsolation,
     scopedCSS,
     appInstanceId,
   );
-
+  // 挂载的 id
   const initialContainer = 'container' in app ? app.container : undefined;
+  // 用户来决定 render 子应用
   const legacyRender = 'render' in app ? app.render : undefined;
-
+  // 1. 用户传入的 render
+  // 2. qiankun render
   const render = getRender(appInstanceId, appContent, legacyRender);
 
   // 第一次加载设置应用可见区域 dom 结构
   // 确保每次应用加载前容器 dom 结构已经设置完毕
   render({ element: initialAppWrapperElement, loading: true, container: initialContainer }, 'loading');
-
+  // 拿到 (initialAppWrapperElement) __qiankun_microapp_wrapper_for_vue_3_vite__  
   const initialAppWrapperGetter = getAppWrapperGetter(
     appInstanceId,
     !!legacyRender,
-    strictStyleIsolation,
-    scopedCSS,
+    strictStyleIsolation, // false
+    scopedCSS, // true
     () => initialAppWrapperElement,
   );
 
   let global = globalContext;
   let mountSandbox = () => Promise.resolve();
   let unmountSandbox = () => Promise.resolve();
-  const useLooseSandbox = typeof sandbox === 'object' && !!sandbox.loose;
+  const useLooseSandbox = typeof sandbox === 'object' && !!sandbox.loose; // false
   // enable speedy mode by default
   const speedySandbox = typeof sandbox === 'object' ? sandbox.speedy !== false : true;
   let sandboxContainer;

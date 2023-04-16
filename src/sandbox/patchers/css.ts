@@ -39,12 +39,16 @@ export class ScopedCSS {
     this.sheet = styleNode.sheet!;
     this.sheet.disabled = true;
   }
-
+  /**
+   * 处理 style
+   * @param styleNode style 标签 
+   * @param prefix scope 前缀
+   * @returns 
+   */
   process(styleNode: HTMLStyleElement, prefix: string = '') {
     if (ScopedCSS.ModifiedTag in styleNode) {
       return;
     }
-
     if (styleNode.textContent !== '') {
       const textNode = document.createTextNode(styleNode.textContent || '');
       this.swapNode.appendChild(textNode);
@@ -56,6 +60,7 @@ export class ScopedCSS {
 
       // cleanup
       this.swapNode.removeChild(textNode);
+      // 给 style 加上标记，之后就不用在处理了
       (styleNode as any)[ScopedCSS.ModifiedTag] = true;
       return;
     }
