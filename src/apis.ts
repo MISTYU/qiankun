@@ -84,8 +84,6 @@ export function registerMicroApps<T extends ObjectType>(
           await loadApp({ name, props, ...appConfig }, frameworkConfiguration /* start 传入的 options */, lifeCycles)
         )();
 
-        // console.log(otherMicroAppConfigs, 'otherMicroAppConfigs');
-
         return {
           mount: [async () => loader(true), ...toArray(mount), async () => loader(false)],
           ...otherMicroAppConfigs,
@@ -217,10 +215,11 @@ export function loadMicroApp<T extends ObjectType>(
 
 export function start(opts: FrameworkConfiguration = {}) {
   frameworkConfiguration = { prefetch: true, singular: true, sandbox: true, ...opts };
+  console.log(frameworkConfiguration, 'frameworkConfiguration');
   const { prefetch, urlRerouteOnly = defaultUrlRerouteOnly, ...importEntryOpts } = frameworkConfiguration;
 
   if (prefetch) {
-    // 预加载策越
+    // 预加载策略
     doPrefetchStrategy(microApps, prefetch, importEntryOpts);
   }
 

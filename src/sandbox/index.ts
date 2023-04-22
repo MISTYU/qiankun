@@ -41,14 +41,17 @@ export function createSandboxContainer(
   speedySandBox?: boolean,
 ) {
   let sandbox: SandBox;
+  // qiankun 的 3 种沙箱模式
   // 支持 proxy 的情况下
   if (window.Proxy) {
     sandbox = useLooseSandbox
       ? new LegacySandbox(appName, globalContext)
       : new ProxySandbox(appName, globalContext, { speedy: !!speedySandBox });
   } else {
+    // 快照沙箱
     sandbox = new SnapshotSandbox(appName);
   }
+  console.log(sandbox, 'sandbox');
 
   // some side effect could be invoked while bootstrapping, such as dynamic stylesheet injection with style-loader, especially during the development phase
   const bootstrappingFreers = patchAtBootstrapping(

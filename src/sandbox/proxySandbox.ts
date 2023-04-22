@@ -83,6 +83,7 @@ const useNativeWindowForBindingsProps = new Map<PropertyKey, boolean>([
 
 /**
  * 创建一个假的 window 实例
+ * 收集 window 上可以 configurable 的属性
  * @param globalContext 
  * @param speedy 
  * @returns 
@@ -99,6 +100,7 @@ function createFakeWindow(globalContext: Window, speedy: boolean) {
    > A property cannot be reported as non-configurable, if it does not exist as an own property of the target object or if it exists as a configurable own property of the target object.
    */
   Object.getOwnPropertyNames(globalContext)
+    // 过滤出不可配置的属性
     .filter((p) => {
       const descriptor = Object.getOwnPropertyDescriptor(globalContext, p);
       return !descriptor?.configurable;
@@ -106,6 +108,7 @@ function createFakeWindow(globalContext: Window, speedy: boolean) {
     .forEach((p) => {
       const descriptor = Object.getOwnPropertyDescriptor(globalContext, p);
       if (descriptor) {
+        // 如果有设置 getter
         const hasGetter = Object.prototype.hasOwnProperty.call(descriptor, 'get');
 
         /*
@@ -122,6 +125,7 @@ function createFakeWindow(globalContext: Window, speedy: boolean) {
           (p === 'document' && speedy) ||
           (inTest && (p === mockTop || p === mockSafariTop))
         ) {
+
           descriptor.configurable = true;
           /*
            The descriptor of window.window/window.top/window.self in Safari/FF are accessor descriptors, we need to avoid adding a data descriptor while it was
@@ -130,6 +134,7 @@ function createFakeWindow(globalContext: Window, speedy: boolean) {
             Chrome: Object.getOwnPropertyDescriptor(window, 'top') -> {value: Window, writable: false, enumerable: true, configurable: false}
            */
           if (!hasGetter) {
+            // 没有 getter 那就设置可更改
             descriptor.writable = true;
           }
         }
@@ -138,7 +143,8 @@ function createFakeWindow(globalContext: Window, speedy: boolean) {
 
         // freeze the descriptor to avoid being modified by zone.js
         // see https://github.com/angular/zone.js/blob/a5fe09b0fac27ac5df1fa746042f96f05ccb6a00/lib/browser/define-property.ts#L71
-        rawObjectDefineProperty(fakeWindow, p, Object.freeze(descriptor));
+        // 在 fakeWindow 添加属性
+        rawObjectDefineProperty(fakeWindow, p, Object.freeze(descriptor) /* 一个被冻结的对象再也不能被修改, 此外，冻结一个对象后该对象的原型也不能被修改 */);
       }
     });
 
@@ -210,14 +216,14 @@ export default class ProxySandbox implements SandBox {
     const { speedy } = opts || {};
 
     const { fakeWindow, propertiesWithGetter } = createFakeWindow(globalContext, !!speedy);
-
     const descriptorTargetMap = new Map<PropertyKey, SymbolTarget>();
-
+    // 创建一个 proxy 代理 fakeWindow
     const proxy = new Proxy(fakeWindow, {
       set: (target: FakeWindow, p: PropertyKey, value: any): boolean => {
         if (this.sandboxRunning) {
           this.registerRunningApp(name, proxy);
           // We must keep its description while the property existed in globalContext before
+          // 如果不在 target, 在 window 上，需要再次设置下
           if (!target.hasOwnProperty(p) && globalContext.hasOwnProperty(p)) {
             const descriptor = Object.getOwnPropertyDescriptor(globalContext, p);
             const { writable, configurable, enumerable, set } = descriptor!;
@@ -237,7 +243,7 @@ export default class ProxySandbox implements SandBox {
             // @ts-ignore
             globalContext[p] = value;
           }
-
+          // 记录变更的属性
           updatedValueSet.add(p);
 
           this.latestSetProp = p;
@@ -255,7 +261,9 @@ export default class ProxySandbox implements SandBox {
 
       get: (target: FakeWindow, p: PropertyKey): any => {
         this.registerRunningApp(name, proxy);
-
+        /**
+         * 处理边界属性情况
+         */
         if (p === Symbol.unscopables) return unscopables;
         // avoid who using window.window or window.self to escape the sandbox environment to touch the real window
         // see https://github.com/eligrey/FileSaver.js/blob/master/src/FileSaver.js#L13
@@ -304,6 +312,7 @@ export default class ProxySandbox implements SandBox {
              proxyFetch('https://qiankun.com');
         */
         const boundTarget = useNativeWindowForBindingsProps.get(p) ? nativeGlobal : globalContext;
+        // 返回 值
         return getTargetValue(boundTarget, value);
       },
 

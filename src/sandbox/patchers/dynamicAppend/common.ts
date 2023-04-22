@@ -190,7 +190,11 @@ export type ContainerConfig = {
   scopedCSS: boolean;
   excludeAssetFilter?: CallableFunction;
 };
-
+/**
+ * 重写 body.append head.append head.insetBefore
+ * @param opts 
+ * @returns 
+ */
 function getOverwrittenAppendChildOrInsertBefore(opts: {
   rawDOMAppendOrInsertBefore: <T extends Node>(newChild: T, refChild?: Node | null) => T;
   isInvokedByMicroApp: (element: HTMLElement) => boolean;
@@ -204,6 +208,7 @@ function getOverwrittenAppendChildOrInsertBefore(opts: {
   ) {
     let element = newChild as any;
     const { rawDOMAppendOrInsertBefore, isInvokedByMicroApp, containerConfigGetter, target = 'body' } = opts;
+    // 如果不是 link, script, style 或者 不是被 微应用触发的，那么不需要被拦截
     if (!isHijackingTag(element.tagName) || !isInvokedByMicroApp(element)) {
       return rawDOMAppendOrInsertBefore.call(this, element, refChild) as T;
     }
@@ -220,13 +225,15 @@ function getOverwrittenAppendChildOrInsertBefore(opts: {
         scopedCSS,
         excludeAssetFilter,
       } = containerConfig;
-
+      
       switch (element.tagName) {
+        // 处理 css
         case LINK_TAG_NAME:
         case STYLE_TAG_NAME: {
           let stylesheetElement: HTMLLinkElement | HTMLStyleElement = newChild as any;
           const { href } = stylesheetElement as HTMLLinkElement;
-          if (excludeAssetFilter && href && excludeAssetFilter(href)) {
+          // 如果不需要处理的 css 那么直接返回
+          if (excludeAssetFilter && href && excludeAssetFilter(href)) { 
             return rawDOMAppendOrInsertBefore.call(this, element, refChild) as T;
           }
 
@@ -237,7 +244,6 @@ function getOverwrittenAppendChildOrInsertBefore(opts: {
           });
 
           const appWrapper = appWrapperGetter();
-
           if (scopedCSS) {
             // exclude link elements like <link rel="icon" href="favicon.ico">
             const linkElementUsingStylesheet =
@@ -269,6 +275,7 @@ function getOverwrittenAppendChildOrInsertBefore(opts: {
 
         case SCRIPT_TAG_NAME: {
           const { src, text } = element as HTMLScriptElement;
+          console.log(SCRIPT_TAG_NAME, 'SCRIPT_TAG_NAME');
           // some script like jsonp maybe not support cors which should't use execScripts
           if ((excludeAssetFilter && src && excludeAssetFilter(src)) || !isExecutableScriptType(element)) {
             return rawDOMAppendOrInsertBefore.call(this, element, refChild) as T;
@@ -284,7 +291,7 @@ function getOverwrittenAppendChildOrInsertBefore(opts: {
 
           if (src) {
             let isRedfinedCurrentScript = false;
-            execScripts(null, [src], proxy, {
+            execScripts(null, [src], proxy /* 执行脚本的全局对象 */, {
               fetch,
               strictGlobal,
               scopedGlobalVariables,
@@ -400,7 +407,12 @@ function getNewRemoveChild(
   removeChild[overwrittenSymbol] = true;
   return removeChild;
 }
-
+/**
+ * 这里重写 append 是为了拦截动态插入的 style link script
+ * @param isInvokedByMicroApp 
+ * @param containerConfigGetter 
+ * @returns 
+ */
 export function patchHTMLDynamicAppendPrototypeFunctions(
   isInvokedByMicroApp: (element: HTMLElement) => boolean,
   containerConfigGetter: (element: HTMLElement) => ContainerConfig,
@@ -408,7 +420,6 @@ export function patchHTMLDynamicAppendPrototypeFunctions(
   const rawHeadAppendChild = HTMLHeadElement.prototype.appendChild;
   const rawBodyAppendChild = HTMLBodyElement.prototype.appendChild;
   const rawHeadInsertBefore = HTMLHeadElement.prototype.insertBefore;
-
   // Just overwrite it while it have not been overwritten
   if (
     rawHeadAppendChild[overwrittenSymbol] !== true &&

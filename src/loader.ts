@@ -283,7 +283,7 @@ export async function loadApp<T extends ObjectType>(
   const {
     singular = false,
     sandbox = true,
-    excludeAssetFilter,
+    excludeAssetFilter, // undefined 
     globalContext = window,
     ...importEntryOpts
   } = configuration;
@@ -297,7 +297,6 @@ export async function loadApp<T extends ObjectType>(
 
   // trigger external scripts loading to make sure all assets are ready before execScripts calling
   await getExternalScripts();
-
   // as single-spa load and bootstrap new app parallel with other apps unmounting
   // (see https://github.com/CanopyTax/single-spa/blob/master/src/navigation/reroute.js#L74)
   // we need wait to load the app until all apps are finishing unmount in singular mode
@@ -342,13 +341,12 @@ export async function loadApp<T extends ObjectType>(
     scopedCSS, // true
     () => initialAppWrapperElement,
   );
-
   let global = globalContext;
   let mountSandbox = () => Promise.resolve();
   let unmountSandbox = () => Promise.resolve();
   const useLooseSandbox = typeof sandbox === 'object' && !!sandbox.loose; // false
   // enable speedy mode by default
-  const speedySandbox = typeof sandbox === 'object' ? sandbox.speedy !== false : true;
+  const speedySandbox = typeof sandbox === 'object' ? sandbox.speedy !== false : true; // false
   let sandboxContainer;
   if (sandbox) {
     sandboxContainer = createSandboxContainer(

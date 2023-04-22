@@ -39,15 +39,19 @@ const parentNodePatchedMap = new WeakMap<PropertyDescriptor, PropertyDescriptor>
 
 function patchDocument(cfg: { sandbox: SandBox; speedy: boolean }) {
   const { sandbox, speedy } = cfg;
-
+  /**
+   * 给 createElement 设置一些 config
+   * @param element
+   * @param proxy 
+   */
   const attachElementToProxy = (element: HTMLElement, proxy: Window) => {
     const proxyContainerConfig = proxyAttachContainerConfigMap.get(proxy);
     if (proxyContainerConfig) {
       elementAttachContainerConfigMap.set(element, proxyContainerConfig);
     }
   };
-
   if (speedy) {
+    // 代理 document 主要是重写 createElement 方法
     const proxyDocument = new Proxy(document, {
       set: (target, p, value) => {
         (<any>target)[p] = value;
@@ -57,6 +61,7 @@ function patchDocument(cfg: { sandbox: SandBox; speedy: boolean }) {
         if (p === 'createElement') {
           // Must store the original createElement function to avoid error in nested sandbox
           const targetCreateElement = target.createElement;
+          // 重写 createElement
           return function createElement(...args: Parameters<typeof document.createElement>) {
             const element = targetCreateElement.call(target, ...args);
             attachElementToProxy(element, sandbox.proxy);
@@ -67,6 +72,7 @@ function patchDocument(cfg: { sandbox: SandBox; speedy: boolean }) {
         const value = (<any>target)[p];
         // must rebind the function to the target otherwise it will cause illegal invocation error
         if (typeof value === 'function' && !isBoundedFunction(value)) {
+          
           return function proxiedFunction(...args: unknown[]) {
             return value.call(target, ...args.map((arg) => (arg === receiver ? target : arg)));
           };
@@ -75,7 +81,7 @@ function patchDocument(cfg: { sandbox: SandBox; speedy: boolean }) {
         return value;
       },
     });
-
+    // 把之前 sandbox 代理的 document 改成 proxyDocument
     sandbox.patchDocument(proxyDocument);
 
     // patch MutationObserver.prototype.observe to avoid type error
@@ -189,7 +195,6 @@ export function patchStrictSandbox(
   }
   // all dynamic style sheets are stored in proxy container
   const { dynamicStyleSheetElements } = containerConfig;
-
   const unpatchDocument = patchDocument({ sandbox, speedy: speedySandbox });
 
   const unpatchDynamicAppendPrototypeFunctions = patchHTMLDynamicAppendPrototypeFunctions(

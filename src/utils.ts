@@ -176,7 +176,7 @@ export function getWrapperId(name: string) {
 
 // 在浏览器中就是 window
 export const nativeGlobal = new Function('return this')();
-
+// 返回原生的 document
 export const nativeDocument = new Function('return document')();
 
 /**

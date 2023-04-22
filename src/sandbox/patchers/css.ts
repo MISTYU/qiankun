@@ -24,6 +24,9 @@ const arrayify = <T>(list: CSSRuleList | any[]) => {
 
 const rawDocumentBodyAppend = HTMLBodyElement.prototype.appendChild;
 
+/**
+ * scoped
+ */
 export class ScopedCSS {
   private static ModifiedTag = 'Symbol(style-modified-qiankun)';
 
