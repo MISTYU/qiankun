@@ -161,7 +161,7 @@ let activeSandboxCount = 0;
  */
 export default class ProxySandbox implements SandBox {
   /** window 值变更记录 */
-  private updatedValueSet = new Set<PropertyKey>();
+  private updatedValueSet = new Set<PropertyKey>(); 
   private document = document;
   name: string;
   type: SandBoxType;
