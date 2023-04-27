@@ -4,7 +4,7 @@
  */
 
 import type { Freer, SandBox } from '../../../interfaces';
-import { isBoundedFunction, nativeDocument, nativeGlobal } from '../../../utils';
+import { isBoundedFunction, nativeDocument, nativeGlobal, isCallable } from '../../../utils';
 import { getCurrentRunningApp } from '../../common';
 import type { ContainerConfig } from './common';
 import {
@@ -18,8 +18,21 @@ import {
   styleElementTargetSymbol,
 } from './common';
 
+const elementAttachedSymbol = Symbol('attachedApp');
+declare global {
+  interface HTMLElement {
+    [elementAttachedSymbol]: string;
+  }
+}
+
 // Get native global window with a sandbox disgusted way, thus we could share it between qiankun instances🤪
 Object.defineProperty(nativeGlobal, '__proxyAttachContainerConfigMap__', { enumerable: false, writable: true });
+
+Object.defineProperty(nativeGlobal, '__currentLockingSandbox__', {
+  enumerable: false,
+  writable: true,
+  configurable: true,
+});
 
 const rawHeadAppendChild = HTMLHeadElement.prototype.appendChild;
 
@@ -63,17 +76,26 @@ function patchDocument(cfg: { sandbox: SandBox; speedy: boolean }) {
           const targetCreateElement = target.createElement;
           // 重写 createElement
           return function createElement(...args: Parameters<typeof document.createElement>) {
+            if (!nativeGlobal.__currentLockingSandbox__) {
+              nativeGlobal.__currentLockingSandbox__ = sandbox.name;
+            }
+
             const element = targetCreateElement.call(target, ...args);
-            attachElementToProxy(element, sandbox.proxy);
+
+            // only record the element which is created by the current sandbox, thus we can avoid the element created by nested sandboxes
+            if (nativeGlobal.__currentLockingSandbox__ === sandbox.name) {
+              attachElementToProxy(element, sandbox.proxy);
+              delete nativeGlobal.__currentLockingSandbox__;
+            }
+
             return element;
           };
         }
 
         const value = (<any>target)[p];
         // must rebind the function to the target otherwise it will cause illegal invocation error
-        if (typeof value === 'function' && !isBoundedFunction(value)) {
-          
-          return function proxiedFunction(...args: unknown[]) {
+        if (isCallable(value) && !isBoundedFunction(value)) {
+          return function proxyFunction(...args: unknown[]) {
             return value.call(target, ...args.map((arg) => (arg === receiver ? target : arg)));
           };
         }
