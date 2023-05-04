@@ -55,27 +55,33 @@ const autoDowngradeForLowVersionBrowser = (configuration: FrameworkConfiguration
 
   return configuration;
 };
-
+/**
+ * 注册 app
+ * @param apps { name, entry, container, activeRule, loader, props }
+ * @param lifeCycles 生命周期
+ */
 export function registerMicroApps<T extends ObjectType>(
   apps: Array<RegistrableApp<T>>,
   lifeCycles?: FrameworkLifeCycles<T>,
 ) {
   // Each app only needs to be registered once
+  // 找到没有注册的 app，第一次全是没注册的
   const unregisteredApps = apps.filter((app) => !microApps.some((registeredApp) => registeredApp.name === app.name));
-
+  // 拿到所有的子应用
   microApps = [...microApps, ...unregisteredApps];
 
   unregisteredApps.forEach((app) => {
-    const { name, activeRule, loader = noop, props, ...appConfig } = app;
-
+    const { name, activeRule, loader = noop, props, ...appConfig /* entry, container */ } = app;
+    // 注册子应用
     registerApplication({
       name,
       app: async () => {
+        // 执行 loader
         loader(true);
+        // 调用 start 方法才会 resolve
         await frameworkStartedDefer.promise;
-
         const { mount, ...otherMicroAppConfigs } = (
-          await loadApp({ name, props, ...appConfig }, frameworkConfiguration, lifeCycles)
+          await loadApp({ name, props, ...appConfig }, frameworkConfiguration /* start 传入的 options */, lifeCycles)
         )();
 
         return {
@@ -209,9 +215,11 @@ export function loadMicroApp<T extends ObjectType>(
 
 export function start(opts: FrameworkConfiguration = {}) {
   frameworkConfiguration = { prefetch: true, singular: true, sandbox: true, ...opts };
+  console.log(frameworkConfiguration, 'frameworkConfiguration');
   const { prefetch, urlRerouteOnly = defaultUrlRerouteOnly, ...importEntryOpts } = frameworkConfiguration;
 
   if (prefetch) {
+    // 预加载策略
     doPrefetchStrategy(microApps, prefetch, importEntryOpts);
   }
 
