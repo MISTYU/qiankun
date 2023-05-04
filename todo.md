@@ -10,4 +10,3 @@ sandbox/
 
 ## qiankun 是如何给 css scoped 的？
 1. 通过重写 head.append head.insert body.append 方法来拦截动态 style link
-2. 
